@@ -1,0 +1,343 @@
+---
+title: "Breast Cancer Diagnosis Prediction (Applied Statistics + ML)"
+author: "Group 9"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+## Overview
+
+This project analyzes a breast cancer dataset (Wisconsin Diagnostic Breast Cancer / BRFSS-style features as provided by the team) to understand how tumor morphology relates to diagnosis (**Benign vs Malignant**). The workflow includes:
+
+- Data import + cleaning (clean names, remove empty columns/rows, de-duplicate)
+- Descriptive statistics
+- Feature engineering (`tumor_size` via quartiles of `radius_mean` for visualization)
+- Normality + skewness checks
+- Exploratory Data Analysis (EDA)
+- Correlation analysis (heatmap)
+- Non-parametric hypothesis testing (Wilcoxon / Mann–Whitney U)
+- Machine Learning classification (SVM) + evaluation (confusion matrix, ROC/AUC)
+
+> **How to use this file in GitHub**
+>
+> Recommended structure:
+> ```
+> breast-cancer-project/
+>   breast_cancer_project.Rmd
+>   data/
+>     breast_cancer.csv
+>   images/   (optional, if you save figures)
+> ```
+>
+> Update the `DATA_PATH` below to match your dataset file.
+
+---
+
+## Setup
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  fig.width = 8,
+  fig.height = 5
+)
+
+library(janitor)
+library(dplyr)
+library(ggplot2)
+library(moments)    # skewness
+library(corrplot)
+library(caret)
+library(e1071)      # svm
+library(pROC)       # ROC/AUC
+```
+
+---
+
+## Data Import
+
+```{r import}
+# ✅ Update this path to match your repo
+DATA_PATH <- "data/breast_cancer.csv"
+
+Breastcancerdata <- read.csv(DATA_PATH)
+
+# Clean column names and remove empty rows/cols
+Breastcancer_data2 <- janitor::clean_names(Breastcancerdata)
+Breastcancer_data2 <- janitor::remove_empty(Breastcancer_data2, which = c("rows", "cols"), quiet = FALSE)
+
+# Remove duplicate rows
+Breastcancer_data2 <- dplyr::distinct(Breastcancer_data2)
+
+# Quick checks
+dim(Breastcancer_data2)
+head(Breastcancer_data2)
+```
+
+---
+
+## Descriptive Statistics
+
+```{r descriptives}
+summary(Breastcancer_data2)
+sapply(Breastcancer_data2, class)
+```
+
+---
+
+## Data Cleaning Notes
+
+- Column names standardized using `clean_names()`
+- Empty columns/rows removed using `remove_empty()`
+- Duplicate rows removed using `distinct()`
+- Any dataset-specific fixes (e.g., missing values) can be added below if needed
+
+```{r missing-values}
+# Example: missing values by column
+colSums(is.na(Breastcancer_data2))
+```
+
+---
+
+## Feature Engineering: Tumor Size (Quartile-based)
+
+A categorical `tumor_size` variable is created from `radius_mean` quartiles to support visualization and subgroup comparisons.
+
+```{r tumor-size}
+if(!"radius_mean" %in% names(Breastcancer_data2)){
+  stop("Expected column 'radius_mean' not found. Check your dataset column names.")
+}
+
+q <- quantile(Breastcancer_data2$radius_mean, probs = c(0, .25, .5, .75, 1), na.rm = TRUE)
+
+Breastcancer_data2 <- Breastcancer_data2 %>%
+  mutate(
+    tumor_size = cut(
+      radius_mean,
+      breaks = q,
+      include.lowest = TRUE,
+      labels = c("Small", "Medium", "Large", "Very_Large")
+    ),
+    tumor_size_numerical = as.numeric(tumor_size)
+  )
+
+table(Breastcancer_data2$tumor_size, useNA = "ifany")
+```
+
+---
+
+## Normality + Skewness Check
+
+Normality testing is often overly sensitive for large datasets; to avoid this, we sample when needed.
+Skewness helps characterize direction/magnitude of asymmetry in distributions.
+
+```{r normality-skewness}
+# Ensure diagnosis is a factor (expected values: "M"/"B" or similar)
+if(!"diagnosis" %in% names(Breastcancer_data2)){
+  stop("Expected column 'diagnosis' not found. Check your dataset column names.")
+}
+Breastcancer_data2$diagnosis <- as.factor(Breastcancer_data2$diagnosis)
+
+# Choose numeric variables for checks (adjust if your dataset differs)
+candidate_numeric <- names(Breastcancer_data2)[sapply(Breastcancer_data2, is.numeric)]
+
+# If you have the classic WDBC columns, keep this subset; otherwise fallback to all numeric
+preferred <- c("radius_mean","texture_mean","perimeter_mean","area_mean",
+               "smoothness_mean","compactness_mean","symmetry_mean","fractal_dimension_mean")
+
+num_vars <- intersect(preferred, candidate_numeric)
+if(length(num_vars) == 0) num_vars <- candidate_numeric
+
+num_vars
+
+# Shapiro tests (sample if too large)
+shapiro_results <- lapply(num_vars, function(v){
+  x <- Breastcancer_data2[[v]]
+  x <- x[!is.na(x)]
+  if(length(x) > 5000) x <- sample(x, 5000)
+  shapiro.test(x)
+})
+names(shapiro_results) <- num_vars
+shapiro_results
+
+# Skewness
+skew_vals <- sapply(num_vars, function(v) moments::skewness(Breastcancer_data2[[v]], na.rm = TRUE))
+skew_vals
+```
+
+---
+
+## Exploratory Data Analysis (EDA)
+
+### Diagnosis Distribution
+
+```{r diag-dist}
+ggplot(Breastcancer_data2, aes(x = diagnosis, fill = diagnosis)) +
+  geom_bar() +
+  labs(title = "Diagnosis Distribution", x = "Diagnosis", y = "Count") +
+  theme_minimal()
+```
+
+### Tumor Size vs Diagnosis
+
+```{r tumor-size-vs-diagnosis}
+ggplot(Breastcancer_data2, aes(x = diagnosis, y = tumor_size_numerical, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.2), alpha = 0.5) +
+  labs(title = "Tumor Size (Quartile-based) by Diagnosis", x = "Diagnosis", y = "Tumor Size (numeric)") +
+  theme_minimal()
+```
+
+### Boxplots: Selected Features vs Diagnosis
+
+```{r boxplots-by-diagnosis}
+plot_vars <- intersect(c("radius_mean","texture_mean","perimeter_mean","area_mean","smoothness_mean","compactness_mean"),
+                       names(Breastcancer_data2))
+
+if(length(plot_vars) < 2){
+  plot_vars <- num_vars[1:min(6, length(num_vars))]
+}
+
+par(mfrow=c(2, 3))
+for (var in plot_vars) {
+  boxplot(get(var) ~ diagnosis, data = Breastcancer_data2,
+          main = var, xlab = "Diagnosis", ylab = var)
+}
+par(mfrow=c(1,1))
+```
+
+### Histograms (Selected Features by Diagnosis)
+
+```{r histograms-by-diagnosis}
+plot_feature_association <- function(feature_name) {
+  ggplot(Breastcancer_data2, aes(x = .data[[feature_name]], fill = diagnosis)) +
+    geom_histogram(position = "dodge", bins = 30) +
+    labs(x = feature_name, y = "Count", fill = "Diagnosis") +
+    theme_minimal()
+}
+
+hist_vars <- intersect(c("perimeter_mean","area_mean"), names(Breastcancer_data2))
+if(length(hist_vars) == 0) hist_vars <- plot_vars[1:min(2, length(plot_vars))]
+
+lapply(hist_vars, plot_feature_association)
+```
+
+---
+
+## Correlation Analysis
+
+```{r correlation}
+# Correlation among numeric features
+corr_df <- Breastcancer_data2 %>%
+  select(where(is.numeric)) %>%
+  na.omit()
+
+cor_matrix <- cor(corr_df)
+
+corrplot(cor_matrix, method = "color", type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 45, number.cex = 0.7, tl.cex = 0.8)
+```
+
+---
+
+## Statistical Testing (Mann–Whitney U / Wilcoxon Rank-Sum)
+
+Because feature distributions often violate normality, we compare diagnosis groups using Wilcoxon rank-sum tests.
+
+```{r mann-whitney}
+# Run Wilcoxon tests for numeric variables against diagnosis
+mw_results <- lapply(num_vars, function(v){
+  wilcox.test(Breastcancer_data2[[v]] ~ Breastcancer_data2$diagnosis)
+})
+names(mw_results) <- num_vars
+
+# P-values summary
+mw_pvals <- sapply(mw_results, function(x) x$p.value)
+mw_pvals <- sort(mw_pvals)
+mw_pvals
+```
+
+Interpretation:
+- If `p < 0.05`, reject H0 → the feature differs significantly between diagnosis groups.
+
+---
+
+## Machine Learning: Support Vector Machine (SVM)
+
+### Train/Test Split + Model Fit
+
+```{r svm-train}
+set.seed(123)
+
+train_index <- caret::createDataPartition(Breastcancer_data2$diagnosis, p = 0.8, list = FALSE)
+train_data <- Breastcancer_data2[train_index, ]
+test_data  <- Breastcancer_data2[-train_index, ]
+
+# Keep only usable columns for modeling: drop any non-predictive IDs if present
+drop_cols <- intersect(c("id", "x", "index"), names(train_data))
+train_data_model <- train_data %>% select(-all_of(drop_cols))
+test_data_model  <- test_data  %>% select(-all_of(drop_cols))
+
+# SVM model
+svm_model <- e1071::svm(
+  diagnosis ~ .,
+  data = train_data_model,
+  type = "C-classification",
+  kernel = "radial"
+)
+
+predictions <- predict(svm_model, newdata = test_data_model)
+
+accuracy <- mean(predictions == test_data_model$diagnosis)
+accuracy
+```
+
+### Confusion Matrix
+
+```{r svm-confusion}
+caret::confusionMatrix(as.factor(predictions), as.factor(test_data_model$diagnosis))
+```
+
+### ROC Curve + AUC (Probability SVM)
+
+```{r svm-roc}
+svm_model_prob <- e1071::svm(
+  diagnosis ~ .,
+  data = train_data_model,
+  type = "C-classification",
+  kernel = "radial",
+  probability = TRUE
+)
+
+prob_pred <- predict(svm_model_prob, newdata = test_data_model, probability = TRUE)
+prob_mat <- attr(prob_pred, "probabilities")
+
+# Determine which column is "positive" class automatically (choose second if unsure)
+# If your diagnosis labels are "M" and "B", you may want "M" as positive:
+positive_class <- if("M" %in% colnames(prob_mat)) "M" else colnames(prob_mat)[2]
+
+probs <- prob_mat[, positive_class]
+
+roc_obj <- pROC::roc(test_data_model$diagnosis, probs, levels = rev(levels(test_data_model$diagnosis)))
+plot(roc_obj, main = paste0("ROC Curve (SVM) — Positive class: ", positive_class))
+pROC::auc(roc_obj)
+```
+
+---
+
+## Key Takeaways
+
+- Non-normal feature distributions motivate robust/non-parametric testing (Wilcoxon).
+- Many morphological mean features differ significantly between benign vs malignant diagnosis groups.
+- SVM achieves strong classification performance as assessed via accuracy, confusion matrix, and ROC/AUC.
+
+---
+
+## Reproducibility Notes
+
+1. Put your dataset in the repo at `data/breast_cancer.csv` (or update `DATA_PATH`).
+2. Knit this file in RStudio: **Knit → Knit to HTML**
+3. Commit the `.Rmd` to GitHub. (Optional: commit the knitted `.html` or `.pdf` if you want.)
