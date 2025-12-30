@@ -1,194 +1,184 @@
-Assessing Significant Morphological Factors Associated with the Development of Breast Cancer
+# Breast Cancer Diagnosis Prediction using Applied Statistics and Machine Learning
 
-Breast cancer is a major global public health concern, where early and accurate diagnosis is essential for improving treatment outcomes and survival rates. However, diagnostic uncertainty often leads to unnecessary biopsies or missed diagnoses. This project evaluates the association between morphological tumor characteristics and the likelihood of developing malignant or benign breast cancer using statistical analysis and machine learning methods.
+Breast cancer is a major global public health concern, where early and accurate diagnosis is essential for improving treatment outcomes and survival rates. This project analyzes breast tumor morphology using the Wisconsin Diagnostic Breast Cancer (WDBC) dataset to identify significant factors associated with malignant and benign diagnoses through exploratory data analysis, statistical hypothesis testing, and machine learning techniques.
 
-The analysis leverages the Wisconsin Diagnostic Breast Cancer (WDBC) dataset and integrates descriptive statistics, exploratory data analysis, non-parametric hypothesis testing, correlation analysis, and logistic regression modeling to identify key morphological features associated with breast cancer diagnosis and support data-driven clinical decision-making. 
+The analysis focuses on tumor morphological characteristics derived from fine needle aspirate (FNA) images, including radius, texture, perimeter, area, smoothness, compactness, symmetry, and fractal dimension. Statistical methods and logistic regression modeling are applied to assess relationships between these features and breast cancer diagnosis, supporting data-driven clinical decision-making.
 
-breast_cancer_applied_stats_Gro…
+---
 
-Introduction
+## Breast Cancer Overview
 
-Breast cancer remains one of the most prevalent cancers worldwide, and timely diagnosis plays a critical role in effective treatment and improved survival outcomes. Morphological features derived from fine needle aspirate (FNA) images offer valuable insight into tumor structure and behavior, yet interpreting these features accurately remains challenging.
+### Definition
+Breast cancer is characterized by the uncontrolled growth of abnormal cells in breast tissue, which may form malignant tumors capable of invading surrounding tissue and spreading to other parts of the body.
 
-This study focuses on evaluating whether morphological characteristics of breast tumors are significantly associated with the likelihood of developing malignant or benign breast cancer. By applying statistical testing and machine learning techniques, the project aims to enhance diagnostic precision, support risk stratification, and contribute toward improved patient care through evidence-based analytical approaches. 
+### Importance of Early Detection
+- Enables timely treatment and improved survival outcomes  
+- Reduces the likelihood of metastasis  
+- Supports personalized and risk-based clinical decision-making  
 
-breast_cancer_applied_stats_Gro…
+### Morphological Risk Indicators
+- Tumor size  
+- Tumor perimeter and area  
+- Tissue smoothness and compactness  
+- Cellular symmetry  
+- Structural irregularities in tumor shape  
 
-Research Question and Hypothesis
-Research Question
+---
 
-Do morphological characteristics of breast tumors have an association with the likelihood of developing malignant or benign breast cancer?
+## Aim and Purpose
 
-Hypotheses
+### Aim
+To investigate the association between breast tumor morphological characteristics and the likelihood of malignant or benign breast cancer diagnosis.
 
-Null Hypothesis (H₀):
-There is no significant association between morphological characteristics and the likelihood of developing malignant or benign breast cancer.
+### Purpose
+This study aims to identify statistically significant tumor features that contribute to breast cancer diagnosis. The findings are intended to assist clinicians and healthcare professionals in improving diagnostic accuracy using quantitative tumor morphology analysis.
 
-Alternative Hypothesis (H₁):
-There is a significant association between morphological characteristics and the likelihood of developing malignant or benign breast cancer.
+---
 
-Dataset Description
+## Research Hypothesis
 
-Dataset: Wisconsin Diagnostic Breast Cancer (WDBC)
+- **Null Hypothesis (H₀):** There is no significant association between tumor morphological characteristics and breast cancer diagnosis.  
+- **Alternative Hypothesis (H₁):** There is a significant association between tumor morphological characteristics and breast cancer diagnosis.
 
-Source: UCI Machine Learning Repository
+---
 
-Records: 569 instances
+## Dataset Description
 
-Features: 30 numerical morphological features
+- **Dataset:** Wisconsin Diagnostic Breast Cancer (WDBC)  
+- **Source:** UCI Machine Learning Repository / Kaggle  
+- **Format:** CSV  
+- **Size:** 569 records × 30 numerical features  
+- **Target Variable:** Diagnosis (Malignant / Benign)  
 
-Outcome Variable: Diagnosis (Malignant / Benign)
+### Data Types
 
-The dataset consists of numerical features extracted from fine needle aspirate (FNA) images of breast masses. It is well-structured, free of missing values and duplicates, and contains mean values representing tumor morphology. 
+**Categorical Variables**
+- Diagnosis (Malignant / Benign)  
+- Tumor Size (derived variable)
 
-breast_cancer_applied_stats_Gro…
+**Numerical Variables**
+- Radius mean  
+- Texture mean  
+- Perimeter mean  
+- Area mean  
+- Smoothness mean  
+- Compactness mean  
+- Symmetry mean  
+- Fractal dimension mean  
 
-Variables
+---
 
-Numerical Features:
-Radius, texture, perimeter, area, smoothness, compactness, symmetry, fractal dimension (mean values)
+## Methodology
 
-Categorical Feature:
-Diagnosis (Malignant / Benign)
+### Data Collection
+The dataset was imported into R and inspected to understand its structure, dimensions, and variable types.
 
-Feature Engineering Assumption
+### Data Cleaning and Preprocessing
+- Standardized column names  
+- Verified absence of missing and duplicate values  
+- Identified and treated outliers using the **3-sigma rule**  
+- Converted diagnosis variable into categorical and numerical formats  
+- Created a derived variable **tumor_size** using quartiles of `radius_mean` for visualization  
 
-A new categorical variable, tumor_size, was created using quartile ranges of radius_mean to enhance visualization and subgroup analysis. This categorization was based on assumption due to the absence of measurement units and supporting literature for the mean-based variables. 
+---
 
-breast_cancer_applied_stats_Gro…
+## Exploratory Data Analysis (EDA)
 
-Methodology
-Data Import
+EDA was conducted to examine differences in tumor morphology between malignant and benign cases.
 
-The dataset was imported into R using the read.csv() function and prepared for analysis.
+---
 
-Data Cleaning
+## Results
 
-Cleaned column names
+This section summarizes the key findings from exploratory data analysis, statistical testing, and machine learning modeling used to assess breast cancer diagnosis based on tumor morphological characteristics.
 
-Verified absence of null and duplicate values
+---
 
-Confirmed dataset dimensions and structure using dim(), head(), and tail()
+### Tumor Size Distribution
 
-Outlier Treatment
+This visualization illustrates the distribution of tumor sizes derived from quartile-based categorization of tumor radius. Malignant tumors are more frequently observed in larger size categories compared to benign tumors, indicating a strong association between tumor size and cancer diagnosis.
 
-Box plots were used to identify outliers
+![Tumor Size Distribution](images/tumor_size_distribution.png)
 
-Outliers were treated using the 3-sigma rule to minimize skewed influence
+---
 
-Descriptive Statistics
+### Boxplot of Tumor Characteristics by Diagnosis
 
-Summary statistics (mean, median, quartiles) were computed for all numerical variables
+The boxplots compare major tumor morphology features—including radius, perimeter, area, smoothness, and compactness—across malignant and benign diagnoses. Malignant tumors consistently exhibit higher median values and greater variability, suggesting these features are strong indicators of malignancy.
 
-Diagnosis variable was confirmed as categorical
+![Boxplot of Tumor Characteristics by Diagnosis](images/boxplot_tumor_characteristics_by_diagnosis.png)
 
-Normality and Distribution Assessment
+---
 
-Diagnosis values were encoded numerically (M = 1, B = 0) for testing
+### Density Plot of Perimeter Mean
 
-Shapiro-Wilk tests revealed non-normal distributions across variables
+The density plot highlights the distribution of perimeter mean values across tumor types. Malignant tumors tend to have higher perimeter measurements, further supporting the relationship between tumor boundary expansion and cancer severity.
 
-Skewness analysis indicated right-skewed distributions, justifying the use of non-parametric tests 
+![Density Plot of Perimeter Mean](images/density_plot_perimeter_mean.png)
 
-breast_cancer_applied_stats_Gro…
+---
 
-Exploratory Data Analysis and Visualization
+### Spearman Correlation Heatmap of Tumor Features
 
-Exploratory analysis was performed using box plots, histograms, scatterplots, and density plots to assess the relationship between tumor morphology and diagnosis.
+The Spearman correlation heatmap reveals strong positive correlations among size-related tumor features such as radius, perimeter, area, and compactness. These findings indicate multicollinearity among morphological variables, which is consistent with known tumor growth patterns.
 
-Key Observations
+![Spearman Correlation Heatmap](images/spearman_correlation_heatmap.png)
 
-Malignant tumors tend to have larger tumor size measurements
+---
 
-Clear distributional differences were observed between benign and malignant cases
+### ROC Curve for Logistic Regression Model
 
-Perimeter mean demonstrated strong discriminatory power between diagnostic groups
+The Receiver Operating Characteristic (ROC) curve evaluates the performance of the logistic regression classifier in distinguishing malignant from benign tumors. The curve demonstrates strong discriminative ability, with a high area under the curve (AUC), indicating effective classification performance.
 
-Figures
-Figure 2. Tumor Size Distribution
+![ROC Curve for Logistic Regression Model](images/roc_curve_logistic_regression.png)
 
-Figure 3. Boxplot of Tumor Characteristics by Diagnosis
+---
 
-Figure 4. Density Plot of Perimeter Mean
+## Statistical Testing
 
-Correlation Analysis
+### Mann–Whitney U Test
+- Applied due to non-normal distributions  
+- All tumor features were statistically significant (**p < 0.05**) except `fractal_dimension_mean`
 
-A Spearman correlation matrix was generated to evaluate relationships among morphological features.
+### Chi-Square Test
+- Conducted between **tumor_size** and diagnosis  
+- Highly significant association (**p < 2.2e-16**)
 
-Findings
+**Result:** The null hypothesis was rejected, confirming statistically significant associations.
 
-Strong positive correlations were observed between:
+---
 
-radius_mean
+## Machine Learning Model
 
-perimeter_mean
+### Logistic Regression
+A logistic regression classifier was implemented to predict breast cancer diagnosis using tumor morphological features. The model demonstrated strong classification performance and effective separation between malignant and benign tumors.
 
-area_mean
+---
 
-compactness_mean
+## Conclusion
 
-High correlation (≈0.99) between radius and area suggests potential multicollinearity, impacting individual predictive contributions 
+- Tumor morphology is significantly associated with breast cancer diagnosis  
+- Logistic regression demonstrated strong discriminatory performance  
+- Findings support quantitative morphology-based diagnostic approaches for early detection  
 
-breast_cancer_applied_stats_Gro…
+---
 
-Figure 5. Spearman Correlation Heatmap of Tumor Features
+## Limitations
 
-Statistical Testing
-Mann–Whitney U Test
+- Small dataset limits generalizability  
+- Lack of patient-level clinical history  
+- Tumor size derived statistically rather than clinically  
 
-Non-parametric Mann–Whitney tests were conducted for all numerical features.
+---
 
-All features showed p < 0.05, indicating significant association with diagnosis
+## Code
 
-Exception: fractal_dimension_mean, which did not show a significant association
+- Full analysis is available in:
+  - `breast_cancer_project.Rmd`
+- The R Markdown file includes:
+  - Data preprocessing  
+  - Statistical testing  
+  - Visualization  
+  - Logistic regression and ROC analysis  
 
-Chi-Square Test
-
-A chi-square test was conducted between tumor_size and diagnosis.
-
-Malignant tumors: p < 2.2e-16
-
-Benign tumors: p < 2.2e-16
-
-These results indicate a statistically significant association between tumor size category and diagnosis. 
-
-breast_cancer_applied_stats_Gro…
-
-Machine Learning Model
-Logistic Regression
-
-A logistic regression model was implemented to classify breast cancer diagnosis.
-
-Demonstrated high predictive accuracy
-
-Correctly ranked malignant cases with approximately 99.16% probability
-
-Strong alignment between predicted probabilities and observed diagnoses
-
-Figure 7. ROC Curve for Logistic Regression Model
-
-Results and Conclusion
-
-The null hypothesis was rejected, confirming a significant association between morphological features and breast cancer diagnosis
-
-Key predictive features include:
-
-Radius
-
-Texture
-
-Perimeter
-
-Area
-
-Smoothness
-
-Compactness
-
-Symmetry
-
-fractal_dimension_mean did not significantly correlate with diagnosis
-
-Logistic regression demonstrated strong diagnostic discrimination
-
-These findings support the importance of morphological characteristics in breast cancer risk assessment and highlight their role in improving diagnostic accuracy and clinical decision-making.
+---
